@@ -4,8 +4,6 @@ kind: Ingress
 metadata:
   name: nautobot-ingress
   namespace: nautobot-kustomize
-  annotations:
-    kubernetes.io/ingress.class: "traefik"
 spec:
   ingressClassName: "traefik"
   rules:
