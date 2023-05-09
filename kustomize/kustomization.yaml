@@ -16,4 +16,4 @@ resources:
   - secrets.yml
   - volumes.yml
 
-namespace: nautobot-kustomize
+namespace: nautobot-flux
