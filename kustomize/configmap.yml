@@ -16,4 +16,4 @@ data:
   # Nautobot configuration
   NAUTOBOT_ALLOWED_HOSTS: "*"
   NAUTOBOT_LOG_LEVEL: DEBUG
-  MY_VAR: foo
+  ANOTHER_CHANGE: bar
