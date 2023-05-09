@@ -1,0 +1,165 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nautobot-web-service
+spec:
+  type: NodePort
+  selector:
+    app: nautobot
+  ports:
+    - port: 8080
+      protocol: TCP
+      targetPort: nautobot-http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nautobot
+spec:
+  minReadySeconds: 30
+  progressDeadlineSeconds: 60
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nautobot
+  template:
+    metadata:
+      labels:
+        app: nautobot
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+      serviceAccountName: nautobot-svc-acct
+      volumes:
+        - name: nautobot-git-volume
+          persistentVolumeClaim:
+            claimName: nautobot-git-pvc
+        - name: nautobot-jobs-volume
+          persistentVolumeClaim:
+            claimName: nautobot-jobs-pvc
+        - name: nautobot-media-volume
+          persistentVolumeClaim:
+            claimName: nautobot-media-pvc
+        - name: nautobot-static-volume
+          persistentVolumeClaim:
+            claimName: nautobot-static-pvc
+        - name: nautobot-promcache-volume
+          persistentVolumeClaim:
+            claimName: nautobot-promcache-pvc
+        - name: nautobot-tmp
+          emptyDir:
+            sizeLimit: 100Mi
+      containers:
+        - name: nautobot-web
+          volumeMounts:
+            - name: nautobot-git-volume
+              mountPath: /opt/nautobot/git
+            - name: nautobot-jobs-volume
+              mountPath: /opt/nautobot/jobs
+            - name: nautobot-media-volume
+              mountPath: /opt/nautobot/media
+            - name: nautobot-static-volume
+              mountPath: /opt/nautobot/static
+            - name: nautobot-promcache-volume
+              mountPath: /prom_cache
+            - name: nautobot-tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "1"
+            limits:
+              memory: "512Mi"
+              cpu: "2"
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: false
+            allowPrivilegeEscalation: false
+          envFrom:
+            - configMapRef:
+                name: config-from-env-files
+            - secretRef:
+                name: secret-from-env-files
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          image: networktocode/nautobot:1.5.10
+          imagePullPolicy: Always
+          tty: true
+          stdin: true
+          ports:
+            - containerPort: 8080
+              name: nautobot-http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+        - name: nautobot-worker
+          volumeMounts:
+            - name: nautobot-git-volume
+              mountPath: /opt/nautobot/git
+            - name: nautobot-jobs-volume
+              mountPath: /opt/nautobot/jobs
+            - name: nautobot-media-volume
+              mountPath: /opt/nautobot/media
+            - name: nautobot-static-volume
+              mountPath: /opt/nautobot/static
+            - name: nautobot-promcache-volume
+              mountPath: /prom_cache
+            - name: nautobot-tmp
+              mountPath: /tmp
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: false
+            allowPrivilegeEscalation: false
+          envFrom:
+            - configMapRef:
+                name: config-from-env-files
+            - secretRef:
+                name: secret-from-env-files
+          command:
+            - nautobot-server
+          args:
+            - celery
+            - worker
+            -  -l
+            - INFO
+            - --events
+          livenessProbe:
+            exec:
+              command:
+                - "bash"
+                - "-c"
+                - "nautobot-server celery inspect ping --destination celery@$HOSTNAME"
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          image: networktocode/nautobot:1.5.10
+          imagePullPolicy: Always
+          tty: true
+          stdin: true
+          readinessProbe:
+            exec:
+              command:
+                - "bash"
+                - "-c"
+                - "nautobot-server celery inspect ping --destination celery@$HOSTNAME"
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1

@@ -1,0 +1,19 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: nautobot-kustomize
+
+resources:
+  - configmap.yml
+  - service-account.yml
+  - namespace.yml
+  - nautobot.yml
+  - postgres.yml
+  - redis.yml
+  - ingress.yml
+  - secrets.yml
+  - volumes.yml
+
+namespace: nautobot-kustomize
